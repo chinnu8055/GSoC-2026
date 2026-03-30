@@ -15,16 +15,16 @@
 
 ## About Me
 
-I am a third-year Computer Science and Engineering student at Anurag University with hands-on experience in full-stack development, serverless architectures, and open-source contribution. My technical stack includes **React**, **TypeScript**, **Python**, **Supabase**, and **Cloudflare Workers**, enabling me to work across both the frontend and backend layers of modern web applications.
+I am a third-year Computer Science and Engineering student at Anurag University. I have worked on full-stack projects using Python, JavaScript, and React, and have some experience with serverless platforms including Cloudflare Workers and Supabase.
 
-**Selected personal projects:**
+**Personal projects:**
 
-- **Healthcare Platform** — A role-based access control system supporting patients, doctors, and admins, built with React, TypeScript, and Supabase. Handles appointment scheduling, medical records, and user management.
-- **AI Chatbot** — Integrated multiple LLM providers (OpenAI, Groq) via a unified API abstraction layer, with conversation history stored in a persistent backend.
-- **Carbon Footprint Tracker (Mobile)** — A React Native application that calculates and visualises a user's carbon footprint based on daily activity inputs, featuring streak tracking and gamified goals.
+- **Healthcare Platform** — A role-based web app supporting patients, doctors, and admins, built with React, TypeScript, and Supabase. Handles appointment scheduling and basic user management.
+- **AI Chatbot** — A chatbot that connects to LLM APIs (OpenAI, Groq) through a shared abstraction layer, with conversation history stored in a backend database.
+- **Carbon Footprint Tracker** — A React Native mobile app that tracks daily activity inputs and visualises estimated carbon output, with streak-based goals.
 
-**Open-source experience:**  
-I have been an active contributor to the Alpha One Labs repository with **8 merged pull requests** spanning UI bug fixes, accessibility improvements, feature additions (quiz management, dark mode, leaderboard), and navigation consistency fixes. These contributions have given me a thorough understanding of the existing codebase structure, review processes, and the team's engineering standards—directly relevant to the work proposed here.
+**Open-source contributions:**
+I have had 9 pull requests merged across the Alpha One Labs repositories. These cover bug fixes, accessibility improvements, a quiz option deletion feature, dark mode fixes, navigation corrections, and an automated leaderboard system with GitHub Actions. Working on these PRs has given me familiarity with how the Django codebase is structured, how the team reviews code, and what the platform's current state looks like in practice.
 
 ---
 
@@ -34,6 +34,7 @@ I have been an active contributor to the Alpha One Labs repository with **8 merg
 |---|---|
 | **Project Title** | Completing the Migration of Alpha One Labs Learn Platform to Cloudflare Python Workers |
 | **Organisation** | Alpha One Labs |
+| **Mentor** | Daniel |
 | **Estimated Duration** | ~480 hours over 12 weeks |
 | **Difficulty** | Medium–Hard |
 
@@ -45,35 +46,32 @@ Complete the migration of the existing Django-based Alpha One Labs platform into
 
 ## Abstract
 
-The Alpha One Labs learning platform is mid-migration from a Django monolith to a Cloudflare Workers-based architecture. The Django repository serves as the canonical feature reference while the `learn` repository—using Cloudflare Workers with Python, D1 (SQLite at the edge), and KV storage—is the target system.
+The Alpha One Labs learning platform is mid-migration from a Django monolith to a Cloudflare Workers-based architecture. The Django repository serves as the canonical feature reference while the `learn` repository — using Cloudflare Python Workers, D1 (SQLite at the edge), and KV storage — is the target system.
 
-The `learn` repo has a working foundation: user authentication, activity and session management, enrollments, and a basic dashboard are already implemented. However, a significant number of features present in Django remain unported, and several existing implementations require security hardening and performance optimisation before the system can be considered production-ready.
+The `learn` repo has a working foundation: user authentication, activity and session management, enrollments, and a basic dashboard are already implemented. However, a significant number of features present in the Django system remain unported, and several existing implementations have security issues and performance problems that need to be addressed before the system is production-ready.
 
-This proposal details a structured, phased approach to:
-1. Harden the existing security model (encryption, token management, CORS, secrets)
-2. Refactor the backend into a maintainable modular architecture
+This proposal outlines a structured, phased approach to:
+1. Harden the existing security model (encryption, token management, Google OAuth, CORS, secrets)
+2. Refactor the backend into a maintainable modular structure
 3. Port the remaining core features (attendance, profiles, full CRUD, role-based access)
 4. Implement community features (forums, peer connections, study groups)
-5. Deliver a polished frontend for all new functionality
-6. Optionally build an AI-powered personalised learning path system
+5. Deliver frontend pages for all new functionality
+6. Add an AI-powered personalised learning path system as an elective feature
 
-The result will be a complete, secure, and performant platform running entirely on Cloudflare's edge network—eliminating the need for the Django backend and giving Alpha One Labs a scalable foundation for future development.
+The result will be a complete, secure platform running on Cloudflare's edge network, eliminating the need to maintain the Django backend.
 
 ---
 
-## Architecture Direction: Modular Repository Design
+## Architecture Direction: Modular Design
 
-### Design Principle
-
-Rather than extending an already-large monolith, the platform will adopt a **modular, multi-repository architecture** where each functional domain lives in an independently deployable Cloudflare Worker. All modules communicate through well-defined API contracts and share a single Cloudflare D1 database (with schema ownership per module).
-
+Rather than continuing to grow a single large file, the backend will be split into domain modules within the `learn` repository. Non-core features like community tools and the AI learning path system can later be extracted into separate Workers if the team decides that makes sense.
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                         Cloudflare Edge                        │
 ├──────────────────┬──────────────────┬──────────────────────────┤
 │   learn (core)   │  community-svc   │      ai-learning-svc     │
 │  ─────────────   │  ─────────────   │  ────────────────────    │
-│  Auth            │  Forums          │  Learning Paths          │
+│  Auth (+ OAuth)  │  Forums          │  Learning Paths          │
 │  Activities      │  Study Groups    │  Quiz Generation         │
 │  Sessions        │  Peer Connect    │  Progress Tracking       │
 │  Enrollments     │                  │                          │
@@ -81,34 +79,11 @@ Rather than extending an already-large monolith, the platform will adopt a **mod
 │  Profiles        │                  │                          │
 ├──────────────────┴──────────────────┴──────────────────────────┤
 │                      Cloudflare D1 (SQLite)                    │
-│                      Cloudflare KV (Sessions/Cache)            │
+│                      Cloudflare KV (Tokens / OAuth state)      │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### Core Repository (`learn`)
-
-The `learn` repo will own all essential platform functionality:
-- Authentication and user management
-- Activities, sessions, and enrollments
-- Attendance tracking
-- User profiles and role-based access control
-- Dashboard and participation metrics
-
-### Separate Service Repositories
-
-Non-core features will graduate to their own Workers once stable, keeping the core lean:
-- `community-svc` — forums, peer connections, study groups
-- `ai-learning-svc` — AI-generated learning paths (elective feature)
-
-### Rationale for This Approach
-
-| Concern | Benefit |
-|---|---|
-| **Maintainability** | Each module has a single responsibility and an independent deployment pipeline |
-| **Contributor experience** | New contributors can onboard to a single domain without understanding the entire system |
-| **Independent deployability** | A bug in the community service does not require redeploying the authentication system |
-| **Scalability** | Each Worker scales independently based on actual load |
-| **Extensibility** | New integrations (e.g., payment processing, notifications) can be added as new modules |
+The `learn` repo owns all core platform functionality. Community and AI features start inside `learn` and can be extracted later once stable.
 
 ---
 
@@ -128,138 +103,264 @@ Non-core features will graduate to their own Workers once stable, keeping the co
 
 | Feature | Gap |
 |---|---|
-| Encryption | MD5/SHA-1 in use; must be replaced with AES-GCM (Web Crypto API) |
+| Encryption | XOR placeholder in use; must be replaced with AES-GCM |
+| Google Sign-In | Absent; no OAuth flow exists |
 | Token management | No expiry or refresh mechanism |
-| Secrets management | Hardcoded or unprotected credentials |
-| CORS policy | Overly permissive |
+| Secrets management | Secrets committed in `wrangler.toml` |
+| CORS policy | Wildcard — overly permissive |
 | Protected endpoints | `/init` and `/seed` accessible without auth |
 | Update/delete for Activities & Sessions | Missing CRUD operations |
 | Enrollment status workflow | No state machine (pending → approved → completed) |
-| Attendance system | Entirely absent |
+| Attendance system | Table exists in schema but no handler code touches it |
 | User profiles | No view/update/password-change endpoints |
-| Role-based access control | No host/admin differentiation |
-| Community features | Absent |
-| Pagination | No cursor-based pagination |
-| N+1 query issues | Multiple list endpoints perform per-row queries |
+| Role-based access control | No host/admin enforcement |
+| Community features | Entirely absent |
+| Pagination | No cursor-based pagination on list endpoints |
+| N+1 query issues | Tags fetched per activity in a loop |
 
 ---
 
-## Phase 1: Security Hardening (Weeks 1–2)
+## Phase 1: Security Hardening and Authentication (Weeks 1–3)
 
-Security is the highest priority because vulnerabilities in the current implementation could be exploited immediately upon production deployment.
+Security issues are addressed first because they represent real risks to user data if the system is deployed as-is. This phase also includes Google Sign-In, since it is part of the authentication layer and must be built on top of a secure token system.
+
+Given the scope — AES-GCM migration of existing records, KV-backed token rotation, and a full OAuth 2.0 flow — this phase is allocated three weeks rather than two.
 
 ### 1.1 Encryption Upgrade
 
-Replace the current weak hashing scheme with **AES-GCM via the Web Crypto API**, which is natively available in the Cloudflare Workers runtime without any external library.
-
+Replace the XOR placeholder with AES-GCM via the Web Crypto API, which is available natively in the Cloudflare Workers runtime without any external dependency.
 ```python
-# Pseudocode for AES-GCM password storage
-async def hash_password(password: str, env) -> str:
+# AES-GCM encryption using Web Crypto API
+async def encrypt_data(plaintext: str, env) -> str:
     key = await crypto.subtle.importKey(
-        "raw", env.ENCRYPTION_KEY, {"name": "AES-GCM"}, False, ["encrypt"]
+        "raw",
+        env.ENCRYPTION_KEY.encode(),
+        {"name": "AES-GCM"},
+        False,
+        ["encrypt"]
     )
-    iv = crypto.getRandomValues(bytes(12))
+    iv = crypto.getRandomValues(bytes(12))  # 96-bit IV for AES-GCM
     ciphertext = await crypto.subtle.encrypt(
-        {"name": "AES-GCM", "iv": iv}, key, password.encode()
+        {"name": "AES-GCM", "iv": iv},
+        key,
+        plaintext.encode()
     )
-    return base64(iv + ciphertext)
+    # Prepend IV to ciphertext for storage; IV is not secret
+    return base64_encode(iv + ciphertext)
+
+async def decrypt_data(stored: str, env) -> str:
+    raw = base64_decode(stored)
+    iv, ciphertext = raw[:12], raw[12:]
+    key = await crypto.subtle.importKey(
+        "raw", env.ENCRYPTION_KEY.encode(),
+        {"name": "AES-GCM"}, False, ["decrypt"]
+    )
+    plaintext = await crypto.subtle.decrypt(
+        {"name": "AES-GCM", "iv": iv}, key, ciphertext
+    )
+    return plaintext.decode()
 ```
 
-### 1.2 JWT Token Expiry and Refresh
+Since this changes how stored user data is encrypted, a dedicated one-time migration endpoint will be included:
+```
+POST /api/admin/migrate-encryption
+Auth: admin Basic Auth + env.ENVIRONMENT != "production" guard
+```
 
-Introduce short-lived access tokens (15 minutes) and long-lived refresh tokens (7 days) stored in Cloudflare KV:
+This endpoint reads each user record, decrypts with XOR, re-encrypts with AES-GCM, and writes back. It is single-use: once run, the endpoint disables itself by writing a completion flag to KV. This avoids forcing users to re-register while ensuring no manual SQL intervention is needed.
 
-- `POST /auth/refresh` — accepts a valid refresh token and issues a new access token
-- Refresh tokens are rotated on each use (rotation prevents silent refresh token theft)
-- Invalidated tokens are tombstoned in KV to prevent replay attacks
+Blind indexes for username/email lookup will also be re-derived using HMAC-SHA256 keyed on a separate `env.BLIND_INDEX_SECRET`, replacing the current approach.
 
-### 1.3 Secrets Management
+### 1.2 Token Expiry and Refresh
 
-All credentials (encryption keys, JWT secrets, API keys) will be moved to **Cloudflare Workers Secrets** (`wrangler secret put`) and accessed via `env.*` bindings. No secrets will appear in `wrangler.toml` or source code.
+Add `iat` (issued-at) and `exp` (expiry) claims to the existing HMAC-signed token payload. Default TTL is 7 days, configurable via `env.TOKEN_TTL_SECONDS`. Token validation rejects expired tokens before verifying the signature to avoid unnecessary HMAC computation.
+```python
+def create_token(user_id: str, username: str, role: str, env) -> str:
+    now = int(time.time())
+    payload = {
+        "id": user_id,
+        "username": username,
+        "role": role,
+        "iat": now,
+        "exp": now + int(env.TOKEN_TTL_SECONDS)
+    }
+    return sign_hmac(json.dumps(payload), env.JWT_SECRET)
 
-### 1.4 CORS Hardening
+def validate_token(token: str, env) -> dict:
+    payload = verify_hmac(token, env.JWT_SECRET)  # raises if invalid
+    if int(time.time()) > payload["exp"]:
+        raise TokenExpiredError()
+    return payload
+```
 
-Implement an explicit allowlist: only the production frontend origin and, in development, `localhost` will be permitted. All other origins will receive `403 Forbidden`.
+A `/api/auth/refresh` endpoint accepts a valid non-expired token and returns a new one, resetting the TTL. This avoids requiring users to log in again after expiry during an active session.
 
-### 1.5 Protected Admin Endpoints
+### 1.3 Google Sign-In (OAuth 2.0 Authorization Code Flow)
 
-`/init` and `/seed` will require a valid admin JWT. In production, these will be further restricted by an IP allowlist or a one-time secret header to prevent accidental invocation.
+Cloudflare Workers have no access to Node.js libraries like Passport.js, so the OAuth 2.0 flow is implemented directly using `fetch`. The flow works as follows:
+```
+Browser                    Worker                      Google
+   │                          │                            │
+   │── GET /auth/google ──────►│                            │
+   │                          │── redirect_uri + state ───►│
+   │◄── 302 to Google ────────│                            │
+   │                          │                            │
+   │── (user consents) ───────────────────────────────────►│
+   │◄── redirect to /auth/google/callback?code=... ────────│
+   │                          │                            │
+   │── GET /auth/google/callback ────────────────────────► │
+   │                          │── POST /token (code) ─────►│
+   │                          │◄── access_token ───────────│
+   │                          │── GET /userinfo ──────────►│
+   │                          │◄── { email, name, sub } ───│
+   │                          │                            │
+   │                          │ (find or create user)      │
+   │◄── 302 + Set HMAC token ─│                            │
+```
 
-**Deliverables:**
-- All passwords stored with AES-GCM
-- JWT refresh flow with KV-backed token rotation
-- Zero hardcoded secrets in source
+**Step 1 — Initiate:**
+```
+GET /api/auth/google
+```
+The Worker constructs the Google authorization URL with `client_id`, `redirect_uri`, `scope=openid email profile`, and a `state` parameter (random 32-byte value stored in KV with a 10-minute TTL to prevent CSRF). The user is redirected to Google.
+
+**Step 2 — Callback:**
+```
+GET /api/auth/google/callback?code=...&state=...
+```
+The Worker:
+1. Verifies the `state` value against KV (deletes it on match — one-time use)
+2. Exchanges the `code` for tokens via `POST https://oauth2.googleapis.com/token`
+3. Fetches user info from `https://www.googleapis.com/oauth2/v3/userinfo`
+4. Looks up the user by `google_sub` (Google's stable user ID) in D1
+5. If found: issues a platform HMAC token and redirects to dashboard
+6. If not found: checks if the email already exists (account linking), or creates a new user record with a null password field (Google-only accounts cannot use password login)
+7. Redirects to the frontend with the token as a short-lived query param or sets it via a secure cookie
+
+**Schema change:**
+```sql
+ALTER TABLE users ADD COLUMN google_sub TEXT;
+ALTER TABLE users ADD COLUMN password_hash TEXT; -- nullable for OAuth-only accounts
+CREATE UNIQUE INDEX idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL;
+```
+
+**Security considerations:**
+- `state` is verified before any token exchange to prevent CSRF
+- `redirect_uri` is hardcoded in `env.GOOGLE_REDIRECT_URI` (not taken from the request)
+- Google client secret is stored in Wrangler managed secrets only
+- OAuth-only accounts are clearly marked; password login is rejected for them
+
+### 1.4 Secrets Management
+
+All credentials will be moved to Cloudflare Workers Secrets (`wrangler secret put`) and accessed via `env.*` bindings at runtime. The `[vars]` block in `wrangler.toml` will hold only non-sensitive configuration (e.g., `ENVIRONMENT`, `TOKEN_TTL_SECONDS`). A `.env.example` file will document every required secret name without values.
+
+Secrets required:
+- `ENCRYPTION_KEY` — 32-byte key for AES-GCM
+- `BLIND_INDEX_SECRET` — separate key for HMAC blind indexes
+- `JWT_SECRET` — HMAC signing key for platform tokens
+- `PEPPER` — password hashing pepper
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- `ADMIN_PASSWORD` — for Basic Auth admin routes
+
+### 1.5 CORS Hardening
+
+Replace the wildcard `Access-Control-Allow-Origin: *` with an explicit allowlist read from `env.ALLOWED_ORIGINS` (comma-separated). The response echoes back the request's `Origin` header only if it appears in the allowlist.
+
+### 1.6 Bootstrap Endpoint Protection
+
+`/api/init` and `/api/seed` will require admin Basic Auth. In production (`env.ENVIRONMENT == "production"`), the seed endpoint returns `403` unconditionally.
+
+**Phase 1 Deliverables:**
+- AES-GCM encryption with one-time migration utility
+- Token expiry and refresh endpoint
+- Google Sign-In via OAuth 2.0 Authorization Code flow
+- Account linking for existing email accounts
+- No secrets in source code or `wrangler.toml`
 - CORS restricted to trusted origins
-- `/init` and `/seed` protected
+- `/api/init` and `/api/seed` protected
 
 ---
 
-## Phase 2: Backend Refactoring (Week 3)
+## Phase 2: Backend Modularization (Week 4)
 
-The current backend logic is concentrated in a single entry-point file, making it difficult to test, review, and extend. This phase restructures the codebase into a clean module layout.
+The current `worker.py` is a single large file. As Phase 1 adds OAuth routes and crypto helpers, this will become unmanageable. This phase restructures the code into domain modules before further feature work begins.
 
 ### Proposed File Structure
-
 ```
 src/
-├── index.py              # Entry point — routes requests to handlers
+├── worker.py               # Entry point: on_fetch → dispatcher only
+├── router.py               # Route table registration
 ├── auth/
-│   ├── handlers.py       # Route handlers (login, register, refresh)
-│   ├── middleware.py     # JWT validation middleware
-│   └── models.py        # User schema, password hashing
+│   ├── handlers.py         # register, login, refresh, google OAuth
+│   ├── middleware.py       # require_auth, require_role decorators
+│   └── crypto.py           # AES-GCM, HMAC, PBKDF2 wrappers
 ├── activities/
-│   ├── handlers.py
-│   └── models.py
+│   ├── handlers.py         # list, create, get, update, delete
+│   └── queries.py          # all D1 queries for activities domain
 ├── sessions/
 │   ├── handlers.py
-│   └── models.py
+│   └── queries.py
 ├── enrollments/
 │   ├── handlers.py
-│   └── models.py
+│   └── queries.py
 ├── attendance/
 │   ├── handlers.py
-│   └── models.py
+│   └── queries.py
 ├── profiles/
 │   ├── handlers.py
-│   └── models.py
+│   └── queries.py
 ├── community/
 │   ├── handlers.py
-│   └── models.py
+│   └── queries.py
 └── shared/
-    ├── db.py             # D1 query helpers and connection pooling
-    ├── response.py      # Standardised JSON response helpers
-    ├── validation.py    # Input validation and sanitisation
-    └── pagination.py    # Cursor-based pagination utilities
+    ├── db.py               # D1 query helpers
+    ├── response.py         # success/error JSON wrappers
+    ├── validation.py       # input validation and sanitisation
+    └── pagination.py       # cursor-based pagination utilities
 ```
 
-**Benefits:**
-- Each module can be reviewed and tested in isolation
-- New contributors can understand a single module without reading thousands of lines
-- Reduces merge conflicts when multiple contributors work in parallel
+This is a pure structural refactor — no behavior changes. All existing routes are verified against their expected responses before and after using the regression test suite established in Phase 1.
 
 **Deliverables:**
-- Full codebase split into domain modules
-- Shared utilities extracted and documented
-- All existing tests passing after refactor
-- Module-level README for each domain
+- Codebase split into domain modules
+- Shared utilities extracted
+- All existing routes passing after refactor
 
 ---
 
-## Phase 3: Query Performance and Pagination (Weeks 3–4)
+## Phase 3: Query Performance and Pagination (Week 5)
 
 ### 3.1 Eliminating N+1 Queries
 
-Several list endpoints currently issue one database query per row to fetch related data. These will be rewritten using SQL `JOIN`s and aggregation:
-
+The current activity listing handler fetches tags for each activity in a Python loop — one extra D1 query per activity. At 50 activities this means 51 round-trips per page load. The fix uses a single aggregated JOIN with D1's `JSON_GROUP_ARRAY`:
 ```sql
--- Before (N+1): one query per enrollment to get session title
-SELECT * FROM enrollments WHERE user_id = ?;
--- Then for each row: SELECT title FROM sessions WHERE id = ?;
+-- Before: N+1 — one query per activity for its tags
+-- After: single query, tags returned as JSON array per row
 
--- After (single query with JOIN):
-SELECT e.id, e.status, e.enrolled_at,
-       s.id AS session_id, s.title AS session_title,
-       a.id AS activity_id, a.name AS activity_name
+SELECT
+  a.id, a.title, a.description, a.status,
+  a.host_id, a.created_at,
+  COALESCE(
+    JSON_GROUP_ARRAY(t.name) FILTER (WHERE t.name IS NOT NULL),
+    '[]'
+  ) AS tags
+FROM activities a
+LEFT JOIN activity_tags at ON at.activity_id = a.id
+LEFT JOIN tags t ON t.id = at.tag_id
+WHERE a.status = 'published'
+GROUP BY a.id
+ORDER BY a.created_at DESC
+LIMIT ? OFFSET ?;
+```
+
+The handler parses the `tags` field as JSON. The same aggregation pattern is applied to dashboard queries, which have the same problem.
+
+Similarly, the enrollment dashboard currently joins sessions and activities in a loop. This is collapsed into:
+```sql
+SELECT
+  e.id, e.status, e.enrolled_at,
+  s.id AS session_id, s.title AS session_title,
+  a.id AS activity_id, a.title AS activity_title
 FROM enrollments e
 JOIN sessions s ON e.session_id = s.id
 JOIN activities a ON s.activity_id = a.id
@@ -269,128 +370,170 @@ ORDER BY e.enrolled_at DESC;
 
 ### 3.2 Cursor-Based Pagination
 
-All list endpoints will support cursor-based pagination to ensure consistent performance as data grows:
-
+All list endpoints will support cursor-based pagination. The cursor is the `id` of the last seen record; queries use `WHERE id > ?` rather than `OFFSET`, which is stable under concurrent inserts and avoids the performance degradation of large offsets.
 ```
-GET /activities?limit=20&cursor=<opaque_cursor>
+GET /api/activities?limit=20&cursor=act_01j8x...&tag=python&search=machine+learning
 
 Response:
 {
   "data": [...],
   "pagination": {
-    "next_cursor": "<next_opaque_cursor>",
+    "next_cursor": "act_01j9y...",
     "has_more": true
   }
 }
 ```
 
-### 3.3 Search and Filtering
-
-- Activities: filter by tag, date range, host
-- Sessions: filter by status, upcoming/past
-- Enrollments: filter by status (pending/approved/completed)
+A shared `paginate(query, params, limit, cursor, env)` utility in `shared/pagination.py` handles cursor injection and `has_more` detection consistently across all list handlers.
 
 **Deliverables:**
-- No N+1 queries in any list endpoint (verified by query logging)
+- No N+1 queries in any list endpoint
 - Cursor-based pagination on all list endpoints
-- Search and filter parameters documented in API reference
+- Search and filter support on activity listing (by tag, host, date range)
 
 ---
 
-## Phase 4: Core Feature Completion (Weeks 4–7)
+## Phase 4: Core Feature Completion (Weeks 6–8)
 
 ### 4.1 Activities and Sessions — Full CRUD
 
-Implement the missing update and delete operations with proper ownership enforcement:
-
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
-| `/activities/:id` | `PUT` | Host (owner) | Update activity metadata |
-| `/activities/:id` | `DELETE` | Host (owner) | Soft-delete activity |
-| `/sessions/:id` | `PUT` | Host (owner) | Update session details |
-| `/sessions/:id` | `DELETE` | Host (owner) | Soft-delete session |
+| `/api/activities/:id` | `PUT` | JWT, must be host | Update activity metadata |
+| `/api/activities/:id` | `DELETE` | JWT, must be host | Soft-delete (sets `status = 'deleted'`) |
+| `/api/sessions/:id` | `PUT` | JWT, must be activity host | Update session details |
+| `/api/sessions/:id` | `DELETE` | JWT, must be activity host | Soft-delete session |
+| `/api/activities/:id/tags/:tag_id` | `DELETE` | JWT, must be host | Remove a tag from activity |
 
-All mutations verify that the authenticated user is the resource owner before proceeding. Non-owners receive `403 Forbidden`.
+Soft-delete is used rather than hard-delete so that existing enrollment and attendance records remain valid. Deleted activities are excluded from public listing but visible to the host in their dashboard with a `deleted` status badge.
+
+All mutations verify ownership with a single query before executing the change:
+```python
+async def assert_activity_owner(activity_id: str, user_id: str, env):
+    row = await db.query_one(
+        "SELECT id FROM activities WHERE id = ? AND host_id = ?",
+        [activity_id, user_id], env
+    )
+    if not row:
+        raise ForbiddenError("You do not own this activity")
+```
 
 ### 4.2 Enrollment Status Workflow
 
-Implement a formal state machine for enrollment lifecycle:
-
+The Django system enforces a state machine for enrollment. This is ported as server-side transition guards:
 ```
 [PENDING] ──(host approves)──► [APPROVED] ──(session ends)──► [COMPLETED]
     │                                │
     └──(host rejects / user cancels)─┴──► [CANCELLED]
 ```
 
-State transitions will be enforced server-side; clients cannot set arbitrary statuses.
+Valid transitions are defined as a dictionary and checked before any status update:
+```python
+VALID_TRANSITIONS = {
+    "pending":   ["approved", "rejected", "cancelled"],
+    "approved":  ["completed", "cancelled"],
+    "rejected":  [],
+    "completed": [],
+    "cancelled": [],
+}
+
+def assert_valid_transition(current: str, next: str):
+    if next not in VALID_TRANSITIONS.get(current, []):
+        raise ValidationError(f"Cannot transition from {current} to {next}")
+```
 
 ### 4.3 Attendance System
 
-A new attendance module will provide:
+The `session_attendance` table already exists in the schema but has no handler code. Three endpoints are added:
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `POST /sessions/:id/attendance` | Host only | Mark a list of users as present/absent |
-| `GET /sessions/:id/attendance` | Host or enrolled user | View attendance for a session |
-| `GET /users/me/attendance` | Authenticated user | View own attendance history across all sessions |
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `POST /api/sessions/:id/attendance` | Host only | Submit attendance list for a session |
+| `GET /api/sessions/:id/attendance` | Host or enrolled | View attendance for a session |
+| `GET /api/users/me/attendance` | JWT (own records) | Own attendance history |
 
-Attendance records are immutable once submitted by the host; corrections require an admin action (logged for audit).
+The POST body accepts a batch:
+```json
+{
+  "records": [
+    { "user_id": "usr_01...", "status": "present" },
+    { "user_id": "usr_02...", "status": "absent" }
+  ]
+}
+```
+
+Records are inserted with `INSERT OR REPLACE` to make the operation idempotent — hosts can resubmit corrected attendance without creating duplicates.
 
 ### 4.4 User Profiles
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `GET /users/me` | Authenticated | Retrieve own profile |
-| `PUT /users/me` | Authenticated | Update display name, bio, avatar URL |
-| `POST /users/me/password` | Authenticated | Change password (requires current password) |
-| `GET /users/:id` | Public | View another user's public profile |
+| `GET /api/users/me` | JWT | Full profile including role, enrollment count |
+| `PUT /api/users/me` | JWT | Update display name, bio |
+| `POST /api/users/me/password` | JWT | Change password (requires current password; blocked for Google-only accounts) |
+| `GET /api/users/:id` | Public | Public profile: display name, bio, hosted activities |
 
 ### 4.5 Role-Based Access Control
 
-Introduce a two-tier role model:
+Currently, any user who calls a host endpoint becomes a de facto host. The fix introduces explicit role enforcement via middleware:
+```python
+def require_role(*roles):
+    def decorator(handler):
+        async def wrapper(request, env, ctx, user):
+            if user["role"] not in roles:
+                return error_response("Forbidden", 403)
+            return await handler(request, env, ctx, user)
+        return wrapper
+    return decorator
 
-| Role | Permissions |
-|---|---|
-| `student` | Enroll, view sessions, mark own attendance, manage profile |
-| `host` | All student permissions + create/update/delete own activities and sessions, manage enrollments, record attendance |
+# Usage
+@require_auth
+@require_role("host", "admin")
+async def create_session(request, env, ctx, user):
+    ...
+```
 
-Role assignment will be controlled by admins via a dedicated endpoint. Host privileges are not self-service. Middleware will enforce role checks consistently across all protected routes.
+Role assignment is admin-controlled via:
+```
+POST /api/users/me/role-request   { requested_role: "host" }
+PATCH /api/admin/role-requests/:id { status: "approved" | "rejected" }
+```
 
-**Deliverables (Phase 4):**
-- Full CRUD for activities and sessions with ownership checks
-- Enrollment state machine with valid transitions
-- Complete attendance recording and retrieval
-- User profile view and update endpoints
-- RBAC middleware integrated across all routes
+**Phase 4 Deliverables:**
+- Full CRUD for activities and sessions with ownership enforcement
+- Enrollment state machine with transition guards
+- Attendance batch submission and retrieval
+- Profile management endpoints
+- RBAC middleware applied to all protected routes
 
 ---
 
-## Phase 5: Community Features (Weeks 8–9)
+## Phase 5: Community Features (Weeks 9–10)
 
-Community features will be implemented to match the Django reference implementation. These will later be extracted into `community-svc` but initially live in the `learn` repo.
+Community features will be built inside the `learn` repo and can be extracted to `community-svc` after the GSoC period once stable.
 
 ### 5.1 Forums
 
-- **Threads** — create, read, update (own), soft-delete (own or moderator)
-- **Replies** — nested up to 2 levels, with threaded display
-- **Categories** — activity-scoped or global
-- **Moderation** — hosts can pin or close threads within their activity
+- Threads: create, read, update (own), soft-delete (own or moderator)
+- Replies: up to 2 levels of nesting
+- Categories: activity-scoped or global
+- Moderation: hosts can pin or close threads within their activity
 
 ### 5.2 Peer Connections
 
-- Send/accept/reject connection requests
+- Send, accept, reject connection requests
 - List connected peers
-- View peer's public profile and shared activity history
+- View peer's public profile
+- Unique constraint prevents duplicate requests in either direction
 
 ### 5.3 Study Groups
 
-- Create groups linked to an activity or independent
-- Invite/join/leave groups
-- Group discussion thread (backed by the forum module)
-- Group membership management by the group creator
+- Create groups linked to an activity or standalone
+- Invite by user ID, accept/decline invite
+- Leave group; creator can remove members
+- Member list with roles (creator, member)
 
-**Schema additions (D1):**
-
+**Schema additions:**
 ```sql
 CREATE TABLE forum_threads (
     id TEXT PRIMARY KEY,
@@ -404,12 +547,22 @@ CREATE TABLE forum_threads (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE forum_replies (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL REFERENCES forum_threads(id),
+    parent_reply_id TEXT REFERENCES forum_replies(id), -- for 2-level nesting
+    author_id TEXT NOT NULL REFERENCES users(id),
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE peer_connections (
     id TEXT PRIMARY KEY,
     requester_id TEXT NOT NULL REFERENCES users(id),
     addressee_id TEXT NOT NULL REFERENCES users(id),
     status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected')),
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    UNIQUE(requester_id, addressee_id)
 );
 
 CREATE TABLE study_groups (
@@ -419,251 +572,368 @@ CREATE TABLE study_groups (
     activity_id TEXT REFERENCES activities(id),
     created_at TEXT NOT NULL
 );
+
+CREATE TABLE study_group_members (
+    group_id TEXT NOT NULL REFERENCES study_groups(id),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    role TEXT DEFAULT 'member',
+    joined_at TEXT NOT NULL,
+    PRIMARY KEY(group_id, user_id)
+);
 ```
 
 **Deliverables:**
 - Forum CRUD with moderation controls
-- Peer connection request/accept/reject flow
-- Study group management
-- Frontend views for all community features
+- Peer connection flow with duplicate prevention
+- Study group management with invite/accept/leave
+- Frontend pages for all community features
 
 ---
 
-## Phase 6: Frontend Development (Weeks 6–10, parallel)
+## Phase 6: Frontend Development (Weeks 6–11, parallel)
 
-Frontend work will proceed in parallel with backend development. The UI will continue using **HTML, Tailwind CSS, and vanilla JavaScript** to stay consistent with the existing frontend.
+Frontend work runs in parallel with backend development. The UI continues using HTML, Tailwind CSS, and vanilla JavaScript, consistent with the existing `learn` frontend. No build step is required — assets are served directly from Cloudflare Workers Assets.
 
 ### New Pages and Components
 
-| Feature | UI Component |
+| Feature | Page / Component |
 |---|---|
-| Attendance marking | Host-facing checklist view per session |
-| Attendance history | Calendar-style heatmap for users |
-| User profile | View/edit form with avatar upload |
-| Enrollment status | Status badge and action buttons (for host: approve/reject) |
-| Community — Forums | Thread list, thread detail, reply composer |
-| Community — Peers | Peer search, connection cards |
-| Community — Study Groups | Group list, group detail, member list |
+| Google Sign-In | Login page button → OAuth redirect; callback handling |
+| Attendance marking | Host-facing checklist per session with batch submit |
+| Attendance history | User view showing status per session attended |
+| User profile | View and edit form; password change (disabled for Google accounts) |
+| Enrollment management | Status badges; approve/reject buttons for host |
+| Activity/session edit | Edit forms pre-populated with existing data |
+| Forums | Thread list, thread detail, reply composer, moderation controls |
+| Peer connections | Search by username, request/accept/reject cards |
+| Study groups | Group list, detail view, member management |
 
 ### Design Principles
 
-- **Progressive enhancement** — core functionality works without JavaScript
-- **Accessibility** — ARIA labels, keyboard navigation, focus management
-- **Performance** — minimal JavaScript, no heavy frameworks, assets served from Cloudflare CDN
-- **Responsive** — mobile-first layouts consistent with the existing UI
+- Core functionality works without JavaScript where possible
+- ARIA labels and keyboard navigation on all interactive elements
+- Mobile-first layouts, consistent with existing UI patterns
+- Auth token stored in `sessionStorage` instead of `localStorage` to reduce XSS blast radius (improvement over current implementation)
 
 ---
 
 ## Phase 7: Elective Feature — AI-Powered Learning Path System (Weeks 11–12)
 
-This feature will be built only after all migration work is complete. It represents a significant value-add for the platform.
+This feature is built only after migration work is complete. It will be reduced in scope or deferred if earlier phases run over time.
 
-### Concept
+### What It Does
 
-A user specifies a topic (e.g., "Introduction to Machine Learning") and the system automatically constructs a personalised, sequential learning path:
-
+A user provides a topic, difficulty level, and available time. The system generates a sequential learning path where each node must be passed (via a quiz) before the next unlocks. Users can also upload their own notes as the source material, in which case the AI extracts the syllabus from their content rather than generating it from scratch.
 ```
-Topic Input ──► LLM-Generated Curriculum ──► User Review
-                                               │
-                            ┌──────────────────┘
-                            ▼
-             Step 1: Concept explanation + resources
-                            │
-                      Pass quiz? ──No──► Retry / Review resources
-                            │ Yes
-                            ▼
-             Step 2: Next concept…
-                            │
-                            ▼
-             Completion Certificate + Progress Summary
+Topic Input ──► LLM Generates Syllabus ──► User Reviews & Edits ──► Confirm
+                                                                         │
+                                                             ┌───────────┘
+                                                             ▼
+                                                  Node 1: Content + Resources
+                                                             │
+                                                   Pass quiz? ──No──► Retry
+                                                             │ Yes
+                                                             ▼
+                                                  Node 2: Next topic…
+                                                             │
+                                                             ▼
+                                                  Completion summary
 ```
 
 ### Content Sources
 
-| Source | Use Case |
+| Source | Purpose |
 |---|---|
-| LLM (OpenAI / Groq) | Concept explanations, quiz generation, plan structuring |
-| Wikipedia API | Authoritative background information and definitions |
-| YouTube Data API | Curated video content per step |
-| User-uploaded notes | Personalised supplementary material |
+| LLM (configurable provider) | Syllabus generation, explanations, quiz questions |
+| Wikipedia REST API | Factual summary per topic node (no auth required) |
+| YouTube Data API v3 | Up to 2 relevant videos per node |
+| User-uploaded notes | Alternative source material for syllabus extraction |
 
 ### LLM Provider Abstraction
 
-To avoid vendor lock-in, an abstraction layer will unify different LLM providers:
-
+Rather than coupling to a single provider, the client is a thin abstraction over the shared chat completions API format (used by OpenAI, Groq, Together AI, and others):
 ```python
 class LLMProvider:
-    async def generate(self, prompt: str, schema: dict) -> dict: ...
+    base_url: str
+    api_key: str
+    model: str
 
-class OpenAIProvider(LLMProvider): ...
-class GroqProvider(LLMProvider): ...
+    async def generate(self, system: str, prompt: str) -> str:
+        response = await fetch(f"{self.base_url}/chat/completions", {
+            "method": "POST",
+            "headers": {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3
+            })
+        })
+        data = await response.json()
+        return data["choices"][0]["message"]["content"]
 
-# Configured via Cloudflare Worker environment variable
-provider = get_provider(env.LLM_PROVIDER)  # "openai" | "groq"
+def get_provider(env) -> LLMProvider:
+    configs = {
+        "openai":   ("https://api.openai.com/v1", env.OPENAI_API_KEY, env.LLM_MODEL),
+        "groq":     ("https://api.groq.com/openai/v1", env.GROQ_API_KEY, env.LLM_MODEL),
+        "together": ("https://api.together.xyz/v1", env.TOGETHER_API_KEY, env.LLM_MODEL),
+    }
+    base_url, api_key, model = configs[env.LLM_PROVIDER]
+    return LLMProvider(base_url, api_key, model)
+```
+
+Switching providers requires only an environment variable change — no code changes.
+
+All prompts instruct the model to return strict JSON only. Responses are validated against an expected schema before being stored. If validation fails, the request is retried once with an explicit correction prompt before returning an error to the user.
+
+### User-Uploaded Notes Processing
+
+When a user uploads their own notes, the content is extracted and processed through the LLM to derive the syllabus rather than generating it from scratch. This is the most technically involved part of the feature:
+```
+Raw notes (text or PDF)
+        │
+        ▼
+  Text extraction
+  (PDF: pdfminer via Workers; plain text: direct)
+        │
+        ▼
+  Chunk into ~400-token segments
+  (split on paragraph breaks; avoid mid-sentence cuts)
+        │
+        ▼
+  For each chunk → LLM prompt:
+  "Identify the main topic and list 2-3 key concepts.
+   Return JSON: { topic: str, concepts: [str] }"
+        │
+        ▼
+  Deduplicate and order topics
+  (group by semantic similarity using LLM, not embeddings)
+        │
+        ▼
+  Construct syllabus nodes from extracted topics
+        │
+        ▼
+  Present to user for review and editing
+  before path is activated
+```
+
+The chunking approach deliberately avoids vector embeddings (which would require Vectorize and add cost) in favour of direct LLM calls per chunk, which is simpler and sufficient for the document sizes this use case involves (personal notes, not textbooks).
+
+### Enrichment Pipeline
+
+After a node's content is generated, Wikipedia and YouTube enrichment is fetched in parallel:
+```python
+async def enrich_node(title: str, env) -> dict:
+    wiki_task = fetch_wikipedia_summary(title)
+    youtube_task = search_youtube(title, env.YOUTUBE_API_KEY, max_results=2)
+    wiki, videos = await asyncio.gather(wiki_task, youtube_task)
+    return {"wikipedia": wiki, "videos": videos}
+```
+
+Wikipedia uses the public `/api/rest_v1/page/summary/{title}` endpoint (no API key needed). YouTube uses the Data API v3 `search.list` with `type=video&relevanceLanguage=en`. Both results are stored in `enrichment_json` on the node record and served from there on subsequent requests — no re-fetching on every page load.
+
+### Quiz Generation
+
+After a user marks a node complete, 3–5 multiple-choice questions are generated from the node's content. Questions, options, and correct answers are stored server-side. The user submits their answers; the server scores them (correct answers are never sent to the client).
+
+Failing a quiz triggers a retry with a freshly generated question set to prevent answer memorisation:
+```python
+async def generate_quiz(node_content: str, llm: LLMProvider) -> list:
+    system = "You are a quiz writer. Return ONLY valid JSON. No markdown."
+    prompt = f"""
+    Based on this content, generate 4 multiple-choice questions.
+    Return: {{
+      "questions": [{{
+        "question": str,
+        "options": [str, str, str, str],
+        "correct_index": int
+      }}]
+    }}
+    Content: {node_content}
+    """
+    raw = await llm.generate(system, prompt)
+    return validate_quiz_schema(json.loads(raw))
 ```
 
 ### Data Model
-
 ```sql
 CREATE TABLE learning_paths (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id),
     topic TEXT NOT NULL,
+    difficulty TEXT CHECK(difficulty IN ('beginner','intermediate','advanced')),
+    mode TEXT CHECK(mode IN ('learn','revise')),
+    duration_hours INTEGER,
+    syllabus_json TEXT,       -- full generated/extracted syllabus
     status TEXT NOT NULL CHECK(status IN ('draft','active','completed')),
     created_at TEXT NOT NULL
 );
 
-CREATE TABLE learning_steps (
+CREATE TABLE path_nodes (
     id TEXT PRIMARY KEY,
     path_id TEXT NOT NULL REFERENCES learning_paths(id),
-    step_order INTEGER NOT NULL,
+    position INTEGER NOT NULL,
     title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    quiz_json TEXT NOT NULL,  -- JSON array of questions
-    is_unlocked INTEGER DEFAULT 0,
-    completed_at TEXT
+    content_json TEXT,        -- LLM-generated explanations and key points
+    enrichment_json TEXT,     -- Wikipedia summary + YouTube video links
+    duration_minutes INTEGER,
+    status TEXT DEFAULT 'locked' CHECK(status IN ('locked','unlocked','completed'))
+);
+
+CREATE TABLE quiz_attempts (
+    id TEXT PRIMARY KEY,
+    node_id TEXT NOT NULL REFERENCES path_nodes(id),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    questions_json TEXT NOT NULL,  -- stored server-side; never sent to client
+    answers_json TEXT,
+    score INTEGER,
+    passed INTEGER DEFAULT 0,
+    attempted_at TEXT NOT NULL
 );
 ```
 
-### User Flow
-
-1. User enters a topic and optional difficulty preference
-2. LLM generates a structured plan (title, steps, learning objectives)
-3. User previews and confirms the plan
-4. Learns step-by-step; each step unlocks after passing the associated quiz
-5. Progress is persisted; users can resume any time
-6. On completion, a shareable progress summary is generated
-
 **Deliverables (if time permits):**
-- LLM provider abstraction supporting at least OpenAI and Groq
-- Learning path generation, storage, and retrieval
-- Quiz generation and pass/fail progression logic
-- Wikipedia and YouTube content integration
-- Frontend for the full learning path experience
+- Provider-agnostic LLM client supporting at least two backends
+- Syllabus generation from topic prompt with user review step
+- Notes upload and chunked topic extraction
+- Node content generation with Wikipedia and YouTube enrichment
+- Quiz generation with server-side scoring and retry on failure
+- Frontend: topic form, syllabus review, node viewer, quiz widget, progress bar
 
 ---
 
 ## Detailed Timeline
 
-### Community Bonding Period (Pre-Week 1)
+### Community Bonding Period
 
-- Deep dive into the `learn` codebase — map every existing route, model, and migration
-- Audit the Django repository to catalogue every feature not yet in `learn`
-- Set up local development environment; write end-to-end smoke tests for existing features
-- Draft the initial D1 schema additions and get mentor sign-off
-- Establish communication cadence and milestone check-in schedule with mentor
+- Map every existing route in `learn` against every Django view — produce a gap document shared with mentor
+- Set up local development environment: `wrangler dev` with a local D1 instance and seed data
+- Write smoke tests for all currently working endpoints as a regression baseline
+- Draft all schema additions (OAuth columns, community tables, AI tables) and get mentor sign-off before writing any code
+- Research Cloudflare Workers Python runtime limitations that could affect any planned implementation; document findings
 
-### Week 1: Security Hardening
+### Week 1: Encryption Migration
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–2 | Implement AES-GCM password hashing with Web Crypto API |
-| 3–4 | Implement JWT access token + refresh token with KV storage |
-| 5 | Move all secrets to Cloudflare Workers Secrets; CORS hardening |
-| 6–7 | Protect `/init` and `/seed`; write security-focused integration tests |
+| 1–2 | Implement AES-GCM encrypt/decrypt using `crypto.subtle`; unit tests for crypto layer |
+| 3–4 | Implement HMAC-SHA256 blind index regeneration |
+| 5–7 | Build and test one-time admin re-encryption endpoint; verify existing user records survive round-trip |
 
-**Milestone:** All security improvements merged; no plaintext secrets in codebase.
+**Milestone:** AES-GCM encryption live; migration utility tested.
 
-### Week 2: Backend Restructuring
+### Week 2: Token Security and Secrets
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–3 | Split monolithic handler file into domain modules (auth, activities, sessions) |
-| 4–5 | Extract shared utilities (db helpers, response formatters, validation) |
-| 6–7 | Remaining modules (enrollments, profiles, community); update all imports; full regression test |
+| 1–2 | Add `iat`/`exp` to token payload; update validation to reject expired tokens |
+| 3–4 | Implement `/api/auth/refresh` endpoint; write expiry/refresh integration tests |
+| 5–6 | Move all secrets to Wrangler managed secrets; remove from `wrangler.toml` |
+| 7 | CORS allowlist; protect `/api/init` and `/api/seed` |
 
-**Milestone:** Modular codebase structure complete; existing tests passing.
+**Milestone:** Token expiry and refresh working; no secrets in source.
 
-### Week 3: Query Optimisation and Pagination
+### Week 3: Google Sign-In
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–3 | Identify and fix all N+1 queries using JOINs; verify with query logging |
-| 4–5 | Implement cursor-based pagination utility; apply to activity and session list endpoints |
-| 6–7 | Apply pagination to enrollment/attendance endpoints; implement search and filter parameters |
+| 1–2 | Schema changes for `google_sub`; OAuth initiation endpoint with KV state storage |
+| 3–4 | OAuth callback: token exchange, userinfo fetch, find-or-create user logic |
+| 5–6 | Account linking for existing email addresses; block password login for OAuth-only accounts |
+| 7 | Frontend: Google Sign-In button on login page; callback handling; integration tests |
+
+**Milestone:** Google Sign-In fully functional; CSRF protection verified.
+
+### Week 4: Backend Modularization
+
+| Days | Task |
+|---|---|
+| 1–3 | Split `worker.py` into auth, activities, sessions, enrollments modules |
+| 4–5 | Extract shared utilities (db, response, validation, pagination) |
+| 6–7 | Community and profiles module stubs; full regression test against all existing routes |
+
+**Milestone:** Modular structure complete; all existing routes passing.
+
+### Week 5: Query Performance and Pagination
+
+| Days | Task |
+|---|---|
+| 1–2 | Fix N+1 tag queries with `JSON_GROUP_ARRAY` aggregation |
+| 3–4 | Fix N+1 enrollment dashboard queries with JOINs |
+| 5–7 | Cursor-based pagination utility; apply to all list endpoints; search and filter on activities |
 
 **Milestone:** No N+1 queries; all list endpoints paginated.
 
-### Week 4: Activities, Sessions, and Enrollments — Full CRUD
+### Week 6: Activities, Sessions, Enrollments — Full CRUD
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–2 | `PUT /activities/:id`, `DELETE /activities/:id` with ownership checks |
-| 3–4 | `PUT /sessions/:id`, `DELETE /sessions/:id` with ownership checks |
-| 5–7 | Enrollment state machine; `PUT /enrollments/:id/status` endpoint; validation and tests |
+| 1–2 | `PUT` and `DELETE` for activities with ownership check and soft-delete |
+| 3–4 | `PUT` and `DELETE` for sessions; tag deletion endpoint |
+| 5–7 | Enrollment state machine with transition guards; `PATCH /api/enrollments/:id/status` |
 
-**Milestone:** Complete CRUD for activities, sessions, and enrollment state transitions.
+**Milestone:** Full CRUD for activities, sessions, and enrollment transitions.
 
-### Week 5: Attendance System
+### Week 7: Attendance and Profiles
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–3 | D1 schema for attendance; `POST /sessions/:id/attendance` (host only) |
-| 4–5 | `GET /sessions/:id/attendance`; `GET /users/me/attendance` |
-| 6–7 | Attendance summary statistics; write integration tests; frontend attendance checklist |
+| 1–3 | Attendance batch submission (`POST`), session view (`GET`), user history (`GET`) |
+| 4–5 | Profile endpoints: view, update, public profile |
+| 6–7 | Password change endpoint; block for Google-only accounts; frontend profile page |
 
-**Milestone:** Attendance system fully functional with frontend UI.
+**Milestone:** Attendance and profiles complete.
 
-### Week 6: User Profiles and Role-Based Access Control
+### Week 8: RBAC and Buffer
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–2 | `GET /users/me`, `PUT /users/me`, public profile endpoint |
-| 3–4 | Password change endpoint; RBAC middleware |
-| 5–7 | Apply RBAC to all existing routes; host privilege assignment; role-aware frontend components |
+| 1–3 | `require_role` middleware; apply to all host/admin routes |
+| 4–5 | Role request and admin approval endpoints; frontend role-aware components |
+| 6–7 | Buffer: clear any slipped items from weeks 6–7; expand integration test coverage |
 
-**Milestone:** Profiles and RBAC complete; all protected routes enforcing correct role checks.
+**Midterm Milestone:** Core migration complete. `learn` deployable as Django replacement. All security, CRUD, attendance, profiles, and RBAC in place.
 
-### Week 7: Buffer, Testing, and Midterm Review
+### Week 9: Community — Forums
 
-- Address any items that slipped from Weeks 1–6
-- Expand integration test coverage to ≥80% of route handlers
-- Prepare midterm evaluation report with metrics (lines migrated, endpoints completed, test coverage)
-- Demo of the migrated platform to mentors
-
-**Midterm Milestone:** Core migration complete. All Django features replicated in `learn`. Platform deployable as production replacement for Django backend.
-
-### Week 8: Community Features — Forums
-
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–2 | D1 schema for forum threads and replies; CRUD handlers |
-| 3–4 | Category support; moderation controls (pin, close) |
+| 1–2 | D1 schema for threads and replies; thread CRUD with ownership checks |
+| 3–4 | Categories; moderation controls (pin, close); reply nesting |
 | 5–7 | Frontend: thread list, thread detail, reply composer |
 
-### Week 9: Community Features — Peers and Study Groups
+### Week 10: Community — Peers and Study Groups
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–3 | Peer connection request/accept/reject API and UI |
-| 4–7 | Study group CRUD; member management; group discussion integration with forums |
+| 1–3 | Peer connection request/accept/reject API; duplicate prevention; frontend |
+| 4–7 | Study group CRUD; invite/accept/leave; member management; frontend |
 
 **Milestone:** All community features complete and tested.
 
-### Week 10: Frontend Polish and Accessibility Pass
+### Week 11: AI Learning Path — Backend
 
-- Audit all new frontend pages for accessibility (ARIA, keyboard navigation)
-- Responsive layout review across breakpoints
-- Performance audit (Lighthouse) and optimisation
-- Ensure visual consistency with existing UI patterns
-
-### Week 11: AI Learning Path System (Elective)
-
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–2 | LLM provider abstraction; D1 schema for learning paths and steps |
-| 3–5 | Learning path generation endpoint; quiz generation from step content |
-| 6–7 | Wikipedia and YouTube integration; user flow (create → review → start) |
+| 1–2 | LLM provider abstraction; D1 schema; syllabus generation endpoint |
+| 3–4 | Notes upload; chunking and per-chunk LLM topic extraction |
+| 5–6 | Node content generation; Wikipedia and YouTube enrichment (parallel fetch) |
+| 7 | Quiz generation endpoint; server-side scoring; pass/fail gating |
 
-### Week 12: AI System Frontend, Testing, and Documentation
+### Week 12: AI Learning Path — Frontend, Testing, Documentation
 
-| Day | Task |
+| Days | Task |
 |---|---|
-| 1–3 | Frontend: topic input, plan preview, step-by-step learning UI |
-| 4–5 | Quiz pass/fail progression; progress persistence and resume functionality |
-| 6–7 | Final integration testing; API reference documentation; deployment guide |
+| 1–3 | Frontend: topic form, syllabus review UI, node viewer with enrichment, quiz widget |
+| 4–5 | Progress bar; resume functionality; retry on quiz fail with new question set |
+| 6–7 | Full end-to-end integration tests; OpenAPI documentation for all endpoints; deployment guide |
 
-**Final Milestone:** Full platform running on Cloudflare Workers; AI learning path system operational; documentation complete.
+**Final Milestone:** Full platform on Cloudflare Workers; AI learning path system operational; documentation complete.
 
 ---
 
@@ -673,20 +943,25 @@ CREATE TABLE learning_steps (
 |---|---|
 | Feature parity with Django backend | 100% of identified features ported |
 | Route handler test coverage | ≥ 80% |
-| N+1 query elimination | 0 N+1 queries in list endpoints |
+| N+1 query elimination | 0 N+1 queries in any list endpoint |
 | API response time (p95 at edge) | < 100 ms |
-| Security audit | Zero critical or high vulnerabilities in final review |
+| Security issues | Zero critical or high findings in final review |
 | Documentation | All endpoints documented with request/response examples |
 
 ---
 
 ## Testing Strategy
 
-Given that Cloudflare Workers Python support does not yet have a mature testing framework, the following layered approach will be used:
+Cloudflare Python Workers do not yet have a mature testing framework, which requires a layered approach tailored to what can and cannot run outside the Worker runtime.
 
-1. **Unit tests** — Pure Python logic (state machines, validation functions, pagination utilities) tested with `pytest` locally, isolated from the Worker runtime.
-2. **Integration tests** — The Cloudflare Workers test environment (via `wrangler dev` with a local D1 instance) will be used to test route handlers end-to-end. Tests will be written using `pytest` with an HTTP client pointed at the local Worker.
-3. **Regression tests** — A smoke-test suite will run on every PR to verify that all existing functionality is unbroken after changes.
+**Unit tests (pure Python, run with `pytest` locally):**
+These cover logic that has no dependency on the Workers runtime: state machine transition guards, pagination cursor logic, input validation functions, and JSON schema validators for LLM responses. The AES-GCM crypto layer cannot be unit-tested with `pytest` directly because `crypto.subtle` is a Workers API — this is handled by mocking the crypto interface with a Python equivalent (using the `cryptography` library) for unit test purposes, with the real implementation verified in integration tests.
+
+**Integration tests (run against `wrangler dev` with local D1):**
+Route handlers are tested end-to-end by pointing an HTTP client (`httpx` in async mode) at a locally running Worker instance. Each test starts with a known database state (seeded via the admin seed endpoint), exercises a route, and asserts on the response body and status code. These tests cover auth flows, ownership checks, state machine transitions, and pagination behaviour. The Google OAuth callback is tested using a mocked `fetch` that returns a fixed userinfo payload.
+
+**Regression suite (runs on every PR via GitHub Actions):**
+A smoke-test suite hits every existing route with a valid request and asserts a non-5xx response. This ensures that refactoring and new features do not silently break working functionality. The suite runs in under 60 seconds against `wrangler dev` to keep PR feedback fast.
 
 ---
 
@@ -694,11 +969,12 @@ Given that Cloudflare Workers Python support does not yet have a mature testing 
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Cloudflare Python Workers runtime limitations discovered mid-project | Medium | High | Identify blockers during Community Bonding; have fallback implementation strategies per feature |
-| D1 schema migrations introduce data loss in development | Low | High | All migrations run through versioned migration files; changes tested against a copy of production data before applying |
-| LLM API costs or rate limits block AI feature development | Medium | Low | AI feature is elective; use Groq's generous free tier for development; mock LLM responses in tests |
-| Scope creep from Django feature audit | Medium | Medium | Maintain a prioritised feature backlog with mentor; deprioritise cosmetic features in favour of functional parity |
-| Midterm deadline pressure | Low | Medium | Week 7 is intentionally a buffer week; midterm scope is defined conservatively |
+| Cloudflare Python Workers runtime missing a needed API (e.g., PDF parsing) | Medium | Medium | Identify during Community Bonding; for PDF notes, fall back to plain text extraction or instruct users to paste text directly |
+| AES-GCM re-encryption migration fails on edge cases in existing data | Low | High | Migration endpoint is admin-only, single-use, and tested against a copy of production data before running; original records are not deleted until re-encryption is confirmed |
+| Google OAuth `redirect_uri` mismatch in production vs development | Medium | Low | `redirect_uri` is stored in `env.GOOGLE_REDIRECT_URI` per environment; verified during Week 3 testing |
+| LLM API rate limits block AI feature development | Medium | Low | AI feature is elective; Groq's free tier is sufficient for development; LLM responses are mocked in tests |
+| Scope creep from Django feature audit | Medium | Medium | Prioritised backlog maintained with mentor; cosmetic features deferred in favour of functional parity |
+| Midterm deadline pressure | Low | Medium | Week 8 includes an explicit buffer; midterm scope is defined conservatively at the end of Week 7 |
 
 ---
 
@@ -706,63 +982,59 @@ Given that Cloudflare Workers Python support does not yet have a mature testing 
 
 | Stakeholder | Benefit |
 |---|---|
-| **Alpha One Labs** | Eliminates Django infrastructure costs; single deployable system on Cloudflare edge |
-| **Platform users** | Significantly faster response times (edge deployment vs. centralised server); improved feature set |
-| **Contributors** | Modular, well-documented codebase with clear domain boundaries is far easier to contribute to |
-| **Future maintainers** | Comprehensive test coverage and documentation reduce onboarding time |
-| **Open-source ecosystem** | The migration serves as a publicly accessible reference implementation for Django-to-Cloudflare Workers migrations |
+| **Alpha One Labs** | Single deployable system on Cloudflare edge; no Django infrastructure to maintain; Google Sign-In reduces registration friction |
+| **Platform users** | Faster response times from edge deployment; more complete feature set; familiar sign-in option |
+| **Contributors** | Modular, documented codebase with clear domain boundaries is easier to contribute to |
+| **Future maintainers** | Test coverage and documentation reduce onboarding time |
 
 ---
 
 ## Previous Contributions to Alpha One Labs
 
-I have had **8 pull requests merged** into the Alpha One Labs repository, demonstrating sustained engagement and familiarity with the codebase:
+I have had **9 pull requests merged** across the Alpha One Labs repositories:
 
-| PR | Description | Area |
-|---|---|---|
-| [#992](https://github.com/alphaonelabs/education-website/issues/992) | Resolved duplicate messaging interfaces causing inconsistent user experience | Frontend / UX |
-| [#982](https://github.com/alphaonelabs/education-website/issues/982) | Fixed virtual lab navigation inconsistency and duplicated Chemistry URL | Routing / Navigation |
-| [#869](https://github.com/alphaonelabs/education-website/issues/869) | Fixed duplicate locale in Top Contributors link | i18n / Templates |
-| [#863](https://github.com/alphaonelabs/education-website/issues/863) | Updated GSoC '25 link to 2026 in website footer | Content / Templates |
-| [#843](https://github.com/alphaonelabs/education-website/issues/843) | Added delete functionality to quiz options | Feature / Backend |
-| [#818](https://github.com/alphaonelabs/education-website/issues/818) | Fixed dark mode colour inconsistencies | CSS / Theming |
-| [#807](https://github.com/alphaonelabs/education-website/issues/807) | Fixed broken Discord and Slack links in website footer | Content / Templates |
-| [#791](https://github.com/alphaonelabs/education-website/issues/791) | Improved discoverability of horizontal scrolling on course enrollment table | Accessibility / UI |
+| PR | Repository | Description | Area |
+|---|---|---|---|
+| [#992](https://github.com/alphaonelabs/education-website/pull/992) | education-website | Resolved duplicate messaging interfaces | Frontend / UX |
+| [#982](https://github.com/alphaonelabs/education-website/pull/982) | education-website | Fixed virtual lab navigation and duplicated Chemistry URL | Routing |
+| [#869](https://github.com/alphaonelabs/education-website/pull/869) | education-website | Fixed duplicate locale in Top Contributors link | i18n / Templates |
+| [#863](https://github.com/alphaonelabs/education-website/pull/863) | education-website | Updated GSoC '25 link to 2026 in footer | Templates |
+| [#843](https://github.com/alphaonelabs/education-website/pull/843) | education-website | Added delete functionality for quiz options | Feature / Backend |
+| [#818](https://github.com/alphaonelabs/education-website/pull/818) | education-website | Fixed dark mode colour inconsistencies | CSS / Theming |
+| [#807](https://github.com/alphaonelabs/education-website/pull/807) | education-website | Fixed broken Discord and Slack links in footer | Templates |
+| [#791](https://github.com/alphaonelabs/education-website/pull/791) | education-website | Improved discoverability of horizontal scrolling on enrollment table | Accessibility |
+| [#7](https://github.com/alphaonelabs/gsoc/pull/7) | gsoc | Functional Leaderboard — added dynamic 2026 tab and static 2025 dataset; automated leaderboard generation via GitHub Actions workflow that fetches PR stats and commits updated JSON on a schedule | Feature / Automation |
 
-These contributions span the full Django stack (templates, views, static assets), which gives me a strong foundation for the migration work. Crucially, I have already navigated the review process with the Alpha One Labs team and understand their standards and expectations.
+The leaderboard PR is in a different repository (`alphaonelabs/gsoc`) and involves more than a template change — it includes a Python script for generating leaderboard data from GitHub's API, a GitHub Actions workflow for scheduled regeneration, and frontend changes to load data dynamically from the generated JSON rather than from hardcoded markup.
 
 ---
 
-## Why I Am the Right Person for This Project
+## Why This Project
 
-**I know the codebase.** My contributions span both the Django repository (the source of truth for feature parity) and the `learn` repository (the migration target). I am not starting from a cold read—I already understand the data models, the team's code style, and the quirks of both systems.
+I have contributed to the Alpha One Labs Django repository across several months, so I am not approaching this migration from a cold read of the codebase. I understand how the data models are structured, where the Django views handle complex business logic that will need careful porting, and what the team's review expectations look like.
 
-**I have directly relevant technical skills.** The migration requires Cloudflare Workers (Python), D1 (SQLite), KV storage, and TypeScript/JavaScript frontend work. I have shipped production code on all of these technologies in personal projects.
+The migration itself is the part I find worth working on. Moving from Django's ORM and synchronous request model to D1's direct SQL interface and Cloudflare Workers' async model is not a mechanical process — it involves deliberate design decisions at each step, and mistakes in the early phases (security, schema) are expensive to fix later. That sequence of decisions is what makes this more interesting than adding a standalone feature.
 
-**My background aligns with the elective AI feature.** I have built an LLM-integrated application using provider abstractions, which maps directly to the AI learning path system proposed in Phase 7.
+Google Sign-In is included because it directly serves new users — eliminating the friction of creating yet another account is a real product improvement, not just a checkbox. Building it without a library on a platform that does not support Node.js means the implementation has to be understood end-to-end, which is a reasonable challenge for a GSoC project.
 
-**I am reliable and communicative.** With 8 merged PRs, I have demonstrated that I can deliver consistent, review-quality work on this specific project—not just in general. I respond to feedback quickly and iterate.
-
-**The migration is technically challenging in exactly the right ways.** Moving from Django's ORM and synchronous request handling to D1's SQL interface and Cloudflare Workers' async model requires careful design decisions. This is not a mechanical port—it is an engineering problem, and that is what motivates me.
+The AI learning path feature is secondary and I will treat it that way. I have built an LLM integration with provider abstraction before, which means this part is not speculative work. But if the migration runs long, the AI feature is the first thing to be cut.
 
 ---
 
 ## Availability and Communication
 
-- **Availability:** ~40 hours per week throughout the GSoC period
-- **Other commitments:** No internships, part-time jobs, or other programmes during this period
-- **Preferred communication:** Async via GitHub issues/PR comments (primary); synchronous check-ins with mentor as needed (at least weekly)
-- **Progress reporting:** Weekly written status updates with completed items, blockers, and next steps posted to the project's communication channel
+- **Availability:** ~40 hours per week during the GSoC period
+- **Other commitments:** No internship, part-time job, or academic overlap during this period
+- **Communication:** Weekly written status updates; GitHub issues and PR comments for async discussion; mentor syncs as agreed
+- **If behind schedule:** AI feature is deprioritised first. Migration is the primary deliverable and will not be sacrificed for the bonus feature.
 
 ---
 
 ## Post-GSoC Plans
 
-The work described here lays a foundation, not a ceiling. After GSoC I intend to:
+After GSoC I plan to continue contributing. Areas I expect to work on:
 
-- **Extract and stabilise `community-svc`** — once the community features are stable in `learn`, migrate them to their own Worker with a proper CI/CD pipeline
-- **Extend the AI learning path system** — add support for spaced repetition, collaborative paths, and instructor-created templates
-- **Improve observability** — integrate Cloudflare Analytics Engine for structured logging and performance monitoring
-- **Continue contributing** — remain an active maintainer, review PRs, mentor new contributors, and help grow the Alpha One Labs community
-
----
+- Extracting community features into a standalone `community-svc` Worker once they are stable in `learn`
+- Extending the AI learning path system — spaced repetition, instructor-created templates, progress analytics
+- Adding structured logging via Cloudflare Analytics Engine for production observability
+- Reviewing PRs and helping onboard new contributors to the migrated codebase
