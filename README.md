@@ -15,7 +15,7 @@
 
 ## About Me
 
-I am a third-year Computer Science and Engineering student at Anurag University. I have worked on full-stack projects using Python, JavaScript, and React, and have some experience with serverless platforms including Cloudflare Workers and Supabase.
+I am a third-year Computer Science and Engineering student at Anurag University. I have worked on full-stack projects using Python, JavaScript, and React, and have experience with backend services like Supabase. I am currently learning Cloudflare Workers and edge-based architectures as part of this project.
 
 **Personal projects:**
 
@@ -1011,13 +1011,13 @@ The leaderboard PR is in a different repository (`alphaonelabs/gsoc`) and involv
 
 ## Why This Project
 
-I have contributed to the Alpha One Labs Django repository across several months, so I am not approaching this migration from a cold read of the codebase. I understand how the data models are structured, where the Django views handle complex business logic that will need careful porting, and what the team's review expectations look like.
+I have contributed to the Alpha One Labs Django repository across several months, so I am not approaching this migration from a cold read of the codebase. I have explored how the data models are structured and how Django views handle business logic, and I am continuing to deepen my understanding as I work on this migration.
 
 The migration itself is the part I find worth working on. Moving from Django's ORM and synchronous request model to D1's direct SQL interface and Cloudflare Workers' async model is not a mechanical process — it involves deliberate design decisions at each step, and mistakes in the early phases (security, schema) are expensive to fix later. That sequence of decisions is what makes this more interesting than adding a standalone feature.
 
 Google Sign-In is included because it directly serves new users — eliminating the friction of creating yet another account is a real product improvement, not just a checkbox. Building it without a library on a platform that does not support Node.js means the implementation has to be understood end-to-end, which is a reasonable challenge for a GSoC project.
 
-The AI learning path feature is secondary and I will treat it that way. I have built an LLM integration with provider abstraction before, which means this part is not speculative work. But if the migration runs long, the AI feature is the first thing to be cut.
+The AI learning path feature is secondary and I will treat it that way. I have worked with LLM APIs and basic integrations before, and I plan to build this feature in a structured and incremental way. But if the migration runs long, the AI feature is the first thing to be cut.
 
 ---
 
